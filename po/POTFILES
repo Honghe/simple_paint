@@ -1,0 +1,9 @@
+data/org.gnome.Ff.desktop.in
+data/org.gnome.Ff.appdata.xml.in
+data/org.gnome.Ff.gschema.xml
+src/window.ui
+
+
+
+src/main.py
+src/window.py
