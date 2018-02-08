@@ -29,12 +29,13 @@
 from gi.repository import Gtk, Gdk
 from .gi_composites import GtkTemplate
 from gi.repository.GdkPixbuf import Pixbuf, InterpType
+import math
 
 @GtkTemplate(ui='/org/gnome/Ff/window.ui')
 class FfWindow(Gtk.ApplicationWindow):
     __gtype_name__ = 'FfWindow'
 
-    scaledown, scaleup, paste, copy, image = GtkTemplate.Child.widgets(5)
+    scaledown, scaleup, paste, copy, image, scale1, adjustment1= GtkTemplate.Child.widgets(7)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -42,6 +43,15 @@ class FfWindow(Gtk.ApplicationWindow):
         self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         self.image_pixbuf = None
         self.scale = 1
+        self.scale_delta = 0.1
+        self.adjsutment_delta = 1
+        self.scale_min = 0.1
+        self.precision = 0.0001
+        self.scale_max = 1.9
+
+    def set_scale_and_adjustment(self, scale):
+        self.scale = scale
+        self.adjustment1.set_value(self.scale)
 
     @GtkTemplate.Callback
     def paste_clicked_cb(self, widget):
@@ -49,6 +59,8 @@ class FfWindow(Gtk.ApplicationWindow):
         self.image_pixbuf = self.clipboard.wait_for_image()
         if self.image_pixbuf != None:
             self.image.set_from_pixbuf(self.image_pixbuf)
+        # reset scale
+        self.set_scale_and_adjustment(1)
 
     @GtkTemplate.Callback
     def copy_clicked_cb(self, widget):
@@ -62,18 +74,35 @@ class FfWindow(Gtk.ApplicationWindow):
     def scaleup_clicked_cb(self, widget):
         print("button scaleup clicked")
         print("width %d", self.image.get_pixbuf().get_width())
-        self.scale += 0.1
-        new_pixbuf = self.image_pixbuf.scale_simple(self.image_pixbuf.get_width() * self.scale,
-                                               self.image_pixbuf.get_height() * self.scale,
+        if math.fabs(self.scale - self.scale_max) < self.precision:
+            return
+
+        self.scale += self.scale_delta
+        self.scale_image(self.scale)
+
+    def scale_image(self, scale):
+        new_pixbuf = self.image_pixbuf.scale_simple(self.image_pixbuf.get_width() * scale,
+                                               self.image_pixbuf.get_height() * scale,
                                                InterpType.BILINEAR)
         self.image.set_from_pixbuf(new_pixbuf)
+        self.adjustment1.set_value(scale)
 
     @GtkTemplate.Callback
     def scaledown_clicked_cb(self, widget):
         print("button scaledown clicked")
         print("width %d", self.image.get_pixbuf().get_width())
-        self.scale -= 0.1
-        new_pixbuf = self.image_pixbuf.scale_simple(self.image_pixbuf.get_width() * self.scale,
-                                               self.image_pixbuf.get_height() * self.scale,
-                                               InterpType.BILINEAR)
-        self.image.set_from_pixbuf(new_pixbuf)
+        if math.fabs(self.scale- self.scale_min) < self.precision:
+            return
+
+        self.scale -= self.scale_delta
+        self.scale_image(self.scale)
+
+    @GtkTemplate.Callback
+    def scale1_value_changed_cb(self, widget):
+         pass
+
+    @GtkTemplate.Callback
+    def adjustment1_value_changed_cb(self, widget):
+         print(widget.get_value())
+         self.scale = widget.get_value()
+         self.scale_image(self.scale)
